@@ -1,0 +1,145 @@
+// Bookstore Shop Business Software - Prisma schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Note: SQLite has no native enum type in Prisma, so Role and OrderStatus are
+// plain strings constrained by application code (see src/middleware/auth.ts
+// and the VALID_STATUSES list in src/routes/order.routes.ts).
+// Role: "CUSTOMER" | "ADMIN"
+// OrderStatus: "PENDING" | "PAID" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED"
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("CUSTOMER")
+  address      String?
+  phone        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  cartItems    CartItem[]
+  orders       Order[]
+  reviews      Review[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  books     Book[]
+  createdAt DateTime @default(now())
+}
+
+model Author {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  bio       String?
+  books     Book[]
+  createdAt DateTime @default(now())
+}
+
+model Book {
+  id            String   @id @default(cuid())
+  title         String
+  isbn          String   @unique
+  description   String
+  price         Float
+  costPrice     Float    @default(0)
+  stock         Int      @default(0)
+  lowStockAlert Int      @default(5)
+  coverImage    String?
+  publisher     String?
+  publishedYear Int?
+  language      String   @default("English")
+  pages         Int?
+  featured      Boolean  @default(false)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id])
+
+  authorId      String
+  author        Author   @relation(fields: [authorId], references: [id])
+
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([title])
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  status        String      @default("PENDING")
+  subtotal      Float
+  tax           Float
+  shippingFee   Float
+  total         Float
+  shippingName  String
+  shippingAddr  String
+  shippingPhone String
+  paymentMethod String      @default("Cash on Delivery")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+
+  items         OrderItem[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  unitPrice Float
+
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+}
